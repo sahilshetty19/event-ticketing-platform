@@ -1,0 +1,41 @@
+<Project>
+
+  <!-- Central Package Management: every PackageReference version is declared here. -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- EF Core (framework-tied: pinned to 9.0.x for the net9.0 target) -->
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.17" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.17" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.17" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Microsoft.Extensions / ASP.NET Core -->
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="9.0.17" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.17" />
+    <PackageVersion Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="9.0.17" />
+    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="9.0.13" />
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="9.0.17" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Messaging / cache / gateway -->
+    <PackageVersion Include="MassTransit" Version="8.5.10" />
+    <PackageVersion Include="MassTransit.RabbitMQ" Version="8.5.10" />
+    <PackageVersion Include="StackExchange.Redis" Version="2.13.17" />
+    <PackageVersion Include="Yarp.ReverseProxy" Version="2.3.0" />
+    <PackageVersion Include="Swashbuckle.AspNetCore" Version="10.2.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Testing -->
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageVersion Include="xunit" Version="2.9.2" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <PackageVersion Include="Moq" Version="4.20.72" />
+  </ItemGroup>
+
+</Project>

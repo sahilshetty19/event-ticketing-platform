@@ -1,0 +1,28 @@
+# Build outputs
+**/bin/
+**/obj/
+**/out/
+
+# IDE / VS
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Local env & secrets (never bake into images)
+.env
+**/appsettings.*.local.json
+
+# Docs / misc
+**/*.md
+LICENSE
+
+# Test artifacts
+**/TestResults/
+**/coverage*.*

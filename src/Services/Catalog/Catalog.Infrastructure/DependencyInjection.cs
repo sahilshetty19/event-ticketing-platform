@@ -12,7 +12,9 @@ public static class DependencyInjection
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration config)
     {
         services.AddDbContext<CatalogDbContext>(opt =>
-            opt.UseSqlServer(config.GetConnectionString("CatalogDb")));
+            opt.UseSqlServer(
+                config.GetConnectionString("CatalogDb"),
+                sql => sql.EnableRetryOnFailure()));
 
         services.AddScoped<IEventRepository, EventRepository>();
         return services;

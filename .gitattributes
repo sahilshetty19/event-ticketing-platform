@@ -1,0 +1,13 @@
+# Normalize line endings. Text files are LF in the repo so they work in Linux
+# containers regardless of the OS they were authored on.
+* text=auto eol=lf
+
+# Windows-only files keep CRLF.
+*.sln text eol=crlf
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# Binary files (no normalization).
+*.png binary
+*.jpg binary
+*.ico binary
