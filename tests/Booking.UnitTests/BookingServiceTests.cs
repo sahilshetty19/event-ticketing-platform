@@ -2,6 +2,7 @@ using Booking.Application.Abstractions;
 using Booking.Application.Dtos;
 using Booking.Application.Services;
 using Booking.Domain.Entities;
+using EventTicketing.Contracts;
 using Moq;
 using Xunit;
 
@@ -11,8 +12,9 @@ public class BookingServiceTests
 {
     private readonly Mock<IBookingRepository> _repo = new();
     private readonly Mock<IDistributedLock> _lock = new();
+    private readonly Mock<IEventBus> _eventBus = new();
 
-    private BookingService CreateSut() => new(_repo.Object, _lock.Object);
+    private BookingService CreateSut() => new(_repo.Object, _lock.Object, _eventBus.Object);
 
     private sealed class NoopLockHandle : IAsyncDisposable
     {
@@ -94,6 +96,9 @@ public class BookingServiceTests
         Assert.Equal(ConfirmOutcome.Success, result.Outcome);
         Assert.Equal("Confirmed", result.Booking!.Status);
         _repo.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        _eventBus.Verify(b => b.PublishAsync(
+            It.Is<BookingConfirmed>(e => e.BookingId == booking.Id && e.Amount == booking.Amount),
+            It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -107,5 +112,6 @@ public class BookingServiceTests
         Assert.Equal(ConfirmOutcome.InvalidState, result.Outcome);
         Assert.NotNull(result.Reason);
         _repo.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        _eventBus.Verify(b => b.PublishAsync(It.IsAny<BookingConfirmed>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 }

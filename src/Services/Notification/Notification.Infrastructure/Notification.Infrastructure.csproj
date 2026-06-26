@@ -1,16 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <ProjectReference Include="..\Booking.Application\Booking.Application.csproj" />
+    <ProjectReference Include="..\Notification.Application\Notification.Application.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\EventTicketing.Messaging\EventTicketing.Messaging.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
-    <PackageReference Include="StackExchange.Redis" />
     <PackageReference Include="MassTransit" />
-    <PackageReference Include="MassTransit.RabbitMQ" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

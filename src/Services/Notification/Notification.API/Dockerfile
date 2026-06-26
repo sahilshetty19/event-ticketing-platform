@@ -10,15 +10,15 @@ COPY Directory.Build.props Directory.Packages.props ./
 
 COPY src/BuildingBlocks/EventTicketing.Contracts/EventTicketing.Contracts.csproj src/BuildingBlocks/EventTicketing.Contracts/
 COPY src/BuildingBlocks/EventTicketing.Messaging/EventTicketing.Messaging.csproj src/BuildingBlocks/EventTicketing.Messaging/
-COPY src/Services/Booking/Booking.Domain/Booking.Domain.csproj                 src/Services/Booking/Booking.Domain/
-COPY src/Services/Booking/Booking.Application/Booking.Application.csproj         src/Services/Booking/Booking.Application/
-COPY src/Services/Booking/Booking.Infrastructure/Booking.Infrastructure.csproj  src/Services/Booking/Booking.Infrastructure/
-COPY src/Services/Booking/Booking.API/Booking.API.csproj                        src/Services/Booking/Booking.API/
-RUN dotnet restore src/Services/Booking/Booking.API/Booking.API.csproj
+COPY src/Services/Notification/Notification.Domain/Notification.Domain.csproj                 src/Services/Notification/Notification.Domain/
+COPY src/Services/Notification/Notification.Application/Notification.Application.csproj         src/Services/Notification/Notification.Application/
+COPY src/Services/Notification/Notification.Infrastructure/Notification.Infrastructure.csproj  src/Services/Notification/Notification.Infrastructure/
+COPY src/Services/Notification/Notification.API/Notification.API.csproj                        src/Services/Notification/Notification.API/
+RUN dotnet restore src/Services/Notification/Notification.API/Notification.API.csproj
 
 COPY src/BuildingBlocks/ src/BuildingBlocks/
-COPY src/Services/Booking/ src/Services/Booking/
-RUN dotnet publish src/Services/Booking/Booking.API/Booking.API.csproj \
+COPY src/Services/Notification/ src/Services/Notification/
+RUN dotnet publish src/Services/Notification/Notification.API/Notification.API.csproj \
     -c Release -o /app/publish /p:UseAppHost=false
 
 # ---- runtime ----
@@ -33,4 +33,4 @@ COPY --from=build /app/publish .
 
 EXPOSE 8080
 ENV ASPNETCORE_URLS=http://+:8080
-ENTRYPOINT ["dotnet", "Booking.API.dll"]
+ENTRYPOINT ["dotnet", "Notification.API.dll"]

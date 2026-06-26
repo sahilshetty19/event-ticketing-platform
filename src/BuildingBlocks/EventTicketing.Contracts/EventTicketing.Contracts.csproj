@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Shared integration-event contracts (plain records). Referenced by publishers and
+       consumers so message shapes stay in sync. No dependencies / no infrastructure. -->
+
+</Project>

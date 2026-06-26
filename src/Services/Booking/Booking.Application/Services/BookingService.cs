@@ -2,6 +2,7 @@ using Booking.Application.Abstractions;
 using Booking.Application.Dtos;
 using Booking.Domain.Entities;
 using Booking.Domain.Exceptions;
+using EventTicketing.Contracts;
 
 namespace Booking.Application.Services;
 
@@ -15,11 +16,13 @@ public class BookingService : IBookingService
 
     private readonly IBookingRepository _repository;
     private readonly IDistributedLock _distributedLock;
+    private readonly IEventBus _eventBus;
 
-    public BookingService(IBookingRepository repository, IDistributedLock distributedLock)
+    public BookingService(IBookingRepository repository, IDistributedLock distributedLock, IEventBus eventBus)
     {
         _repository = repository;
         _distributedLock = distributedLock;
+        _eventBus = eventBus;
     }
 
     public async Task<HoldResult> HoldAsync(HoldSeatRequest request, CancellationToken ct = default)
@@ -62,6 +65,11 @@ public class BookingService : IBookingService
         }
 
         await _repository.SaveChangesAsync(ct);
+
+        // Notify the rest of the system. Payment and Notification react to this asynchronously.
+        await _eventBus.PublishAsync(new BookingConfirmed(
+            booking.Id, booking.EventId, booking.SeatId, booking.CustomerId,
+            booking.Amount, booking.ConfirmedAtUtc!.Value), ct);
 
         return new ConfirmResult(ConfirmOutcome.Success, ToResponse(booking), null);
     }

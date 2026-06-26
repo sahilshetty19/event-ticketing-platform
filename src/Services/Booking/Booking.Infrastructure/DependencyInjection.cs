@@ -1,7 +1,9 @@
 using Booking.Application.Abstractions;
 using Booking.Infrastructure.Locking;
+using Booking.Infrastructure.Messaging;
 using Booking.Infrastructure.Persistence;
 using Booking.Infrastructure.Repositories;
+using EventTicketing.Messaging;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -33,6 +35,10 @@ public static class DependencyInjection
         {
             services.AddSingleton<IDistributedLock, InMemoryDistributedLock>();
         }
+
+        // Messaging: Booking only publishes integration events (no consumers).
+        services.AddEventBus(config);
+        services.AddScoped<IEventBus, MassTransitEventBus>();
 
         return services;
     }
