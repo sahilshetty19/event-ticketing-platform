@@ -6,6 +6,10 @@
 # dotenv files
 .env
 
+# Kubernetes: the real (non-example) secret must never be committed
+k8s/secret.yaml
+k8s/*.secret.yaml
+
 # User-specific files
 *.rsuser
 *.suo

@@ -1,0 +1,8 @@
+# A Namespace is a virtual cluster-within-the-cluster: it scopes names and lets you
+# manage/teardown all the project's objects together. Everything here lives in it.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: event-ticketing
+  labels:
+    app.kubernetes.io/part-of: event-ticketing

@@ -1,0 +1,17 @@
+# A ConfigMap holds NON-secret configuration as key/value pairs, injected into pods as
+# environment variables. Note the hostnames are Kubernetes Service names (sqlserver, redis,
+# rabbitmq) — inside the cluster, CoreDNS resolves those to the right pods, exactly like
+# docker-compose resolves service names on its bridge network.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: et-config
+  namespace: event-ticketing
+  labels:
+    app.kubernetes.io/part-of: event-ticketing
+data:
+  # "Development" enables Swagger UI; set to "Production" to disable it.
+  ASPNETCORE_ENVIRONMENT: "Development"
+  ConnectionStrings__Redis: "redis:6379"
+  RabbitMq__Host: "rabbitmq"
+  RabbitMq__Username: "eventuser"
