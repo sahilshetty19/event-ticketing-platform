@@ -34,7 +34,7 @@ Four microservices sit behind a single **YARP API gateway**. Each service has it
 
 ```mermaid
 flowchart LR
-  client([Client]) --> gw[API Gateway<br/>YARP]
+  spa[Angular SPA<br/>nginx] --> gw[API Gateway<br/>YARP]
 
   gw -->|/catalog| cat[Catalog API]
   gw -->|/booking| bk[Booking API]
@@ -99,6 +99,7 @@ sequenceDiagram
 | Concern             | Technology |
 |---------------------|------------|
 | Language / runtime  | C# / .NET 9 |
+| Frontend            | Angular 20 (standalone components, TypeScript, RxJS) served by nginx |
 | Web                 | ASP.NET Core (controllers + Swagger/OpenAPI) |
 | Persistence         | EF Core 9 + SQL Server (one database per service) |
 | Caching             | Redis (`IDistributedCache` cache-aside) |
@@ -114,12 +115,13 @@ sequenceDiagram
 
 ```
 EventTicketing.sln
-docker-compose.yml            # entire system: gateway + 4 services + SQL/Redis/RabbitMQ
+docker-compose.yml            # entire system: web + gateway + 4 services + SQL/Redis/RabbitMQ
 .env.example                  # copy to .env (gitignored) — holds local secrets
 Directory.Build.props         # shared TFM / Nullable / ImplicitUsings
 Directory.Packages.props      # central NuGet versions
 .github/workflows/ci.yml      # CI pipeline
 src/
+  Web/event-ticketing-ui/     # Angular SPA (nginx-served, containerized)
   ApiGateway/ApiGateway/      # YARP gateway
   BuildingBlocks/
     EventTicketing.Contracts/ # integration-event contracts
@@ -149,9 +151,11 @@ tests/
 # 1. Create your local secrets file from the template
 cp .env.example .env        # Windows PowerShell: copy .env.example .env
 
-# 2. Build and start everything (gateway, 4 services, SQL Server, Redis, RabbitMQ)
+# 2. Build and start everything (web, gateway, 4 services, SQL Server, Redis, RabbitMQ)
 docker compose up --build
 ```
+
+Then open the UI at **http://localhost:4200**.
 
 Each service migrates its database on startup, so the system is ready once the containers report
 healthy. Compose orchestrates start-up order with healthchecks (`depends_on: condition:
@@ -159,6 +163,7 @@ service_healthy`).
 
 | Component         | URL |
 |-------------------|-----|
+| **Web UI (SPA)**  | http://localhost:4200 |
 | **API Gateway**   | http://localhost:8080 |
 | Catalog (direct)  | http://localhost:5001/swagger |
 | Booking (direct)  | http://localhost:5002/swagger |
@@ -188,6 +193,22 @@ own port.
 | GET  | `/payment/api/payments/{id}`       | `/api/payments/{id}`        | Payment detail |
 | GET  | `/notification/api/notifications`  | `/api/notifications`        | Recently sent notifications |
 | GET  | `/{service}/health`                | `/health`                   | Liveness probe (every service + gateway) |
+
+## Frontend (Angular SPA)
+
+A single-page Angular 20 app (`src/Web/event-ticketing-ui`) is the user-facing client. It talks
+only to the gateway and drives the same flow as the API walkthrough below:
+
+- **Events list** — cards (name, venue, city, date) with a reactive search filter.
+- **Event detail** — a seat map coloured by status (Available / Held / Booked); clicking an
+  available seat places a hold.
+- **Booking status** — a live countdown on the hold, a *Confirm* button, then RxJS polling of the
+  booking until payment completes (Held → Confirmed → Paid).
+
+Key pieces: a typed `ApiService` over `HttpClient`, TypeScript interfaces mirroring the DTOs,
+and the API base URL resolved from Angular environment config (overridable at container runtime
+via `env.js`). It is containerized with a multi-stage Dockerfile (Node build → nginx) and an nginx
+config that falls back to `index.html` for client-side routes.
 
 ## End-to-end walkthrough
 
@@ -302,7 +323,8 @@ Design, SOLID, REST APIs, Entity Framework Core, SQL Server, Redis, distributed 
 cache-aside, RabbitMQ, MassTransit, event-driven architecture, asynchronous messaging,
 publish/subscribe, idempotency, at-least-once delivery, dead-letter queue, database-per-service,
 YARP API gateway, Docker, multi-stage builds, Docker Compose, CI/CD, GitHub Actions, xUnit, Moq,
-integration testing, WebApplicationFactory.
+integration testing, WebApplicationFactory, Angular, TypeScript, single-page application (SPA),
+RxJS, reactive forms, nginx, full-stack.
 
 **Draft bullet points:**
 
@@ -321,4 +343,7 @@ integration testing, WebApplicationFactory.
 - Established a **GitHub Actions CI pipeline** that restores, builds, runs **xUnit/Moq unit and
   `WebApplicationFactory` integration tests**, and builds Docker images for every service via a
   build matrix.
+- Built a containerized **Angular 20 SPA** (standalone components, typed `HttpClient` service,
+  RxJS polling, reactive forms) for the browse → hold → confirm → pay flow, served via **nginx**
+  with runtime-injected API configuration and consuming the platform through the gateway.
 ```

@@ -1,0 +1,43 @@
+<section class="page">
+  <a class="back" routerLink="/">← All events</a>
+  <h1>Your booking</h1>
+
+  @if (error()) { <p class="error">{{ error() }}</p> }
+
+  @if (booking(); as b) {
+    <div class="status-card">
+      <div class="timeline">
+        <span class="step done">Held</span>
+        <span class="arrow">→</span>
+        <span class="step" [class.done]="isConfirmed()">Confirmed</span>
+        <span class="arrow">→</span>
+        <span class="step" [class.done]="isPaid()">Paid</span>
+      </div>
+
+      <dl class="details">
+        <dt>Booking</dt><dd>{{ b.id }}</dd>
+        <dt>Seat</dt><dd>{{ b.seatId }}</dd>
+        <dt>Amount</dt><dd>€{{ b.amount | number:'1.2-2' }}</dd>
+        <dt>Status</dt><dd>{{ b.status }}{{ isPaid() ? ' · Paid' : '' }}</dd>
+      </dl>
+
+      @if (b.status === 'Held') {
+        <p class="countdown">Hold expires in <strong>{{ secondsLeft() }}s</strong></p>
+        <button class="btn primary" (click)="confirm()" [disabled]="confirming() || secondsLeft() === 0">
+          {{ confirming() ? 'Confirming…' : 'Confirm booking' }}
+        </button>
+        @if (secondsLeft() === 0) {
+          <p class="muted">This hold has expired. Please pick another seat.</p>
+        }
+      } @else if (isPaid()) {
+        <p class="success">🎉 Payment received — your booking is complete!</p>
+      } @else if (b.status === 'Confirmed') {
+        <p class="muted">Confirmed! Processing payment…</p>
+      } @else {
+        <p class="muted">Booking status: {{ b.status }}</p>
+      }
+    </div>
+  } @else if (!error()) {
+    <p class="muted">Loading…</p>
+  }
+</section>

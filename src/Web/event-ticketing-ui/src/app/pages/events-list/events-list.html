@@ -1,0 +1,29 @@
+<section class="page">
+  <h1>Upcoming events</h1>
+
+  <input
+    class="search"
+    type="text"
+    [formControl]="search"
+    placeholder="Search by name, venue, or city…"
+    aria-label="Search events" />
+
+  @if (loading()) {
+    <p class="muted">Loading events…</p>
+  } @else if (error()) {
+    <p class="error">{{ error() }}</p>
+  } @else if (filtered().length === 0) {
+    <p class="muted">No events found.</p>
+  } @else {
+    <div class="card-grid">
+      @for (ev of filtered(); track ev.id) {
+        <a class="card" [routerLink]="['/events', ev.id]">
+          <h2>{{ ev.name }}</h2>
+          <p class="venue">{{ ev.venueName }} · {{ ev.city }}</p>
+          <p class="date">{{ ev.startsAtUtc | date:'EEE, d MMM y · HH:mm' }}</p>
+          <p class="desc">{{ ev.description }}</p>
+        </a>
+      }
+    </div>
+  }
+</section>

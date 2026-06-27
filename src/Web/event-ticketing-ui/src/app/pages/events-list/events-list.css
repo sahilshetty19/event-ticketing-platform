@@ -1,0 +1,2 @@
+/* Component-specific styles live here; shared layout is in global styles.css. */
+:host { display: block; }

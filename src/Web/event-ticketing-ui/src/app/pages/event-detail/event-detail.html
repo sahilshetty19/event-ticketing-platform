@@ -1,0 +1,43 @@
+<section class="page">
+  <a class="back" routerLink="/">← All events</a>
+
+  @if (event(); as ev) {
+    <h1>{{ ev.name }}</h1>
+    <p class="venue muted">
+      {{ ev.venueName }} · {{ ev.city }} · {{ ev.startsAtUtc | date:'EEE, d MMM y · HH:mm' }}
+    </p>
+  }
+
+  @if (error()) { <p class="error">{{ error() }}</p> }
+
+  @if (loading()) {
+    <p class="muted">Loading seats…</p>
+  } @else {
+    <div class="legend">
+      <span class="seat available"></span> Available
+      <span class="seat held"></span> Held
+      <span class="seat booked"></span> Booked
+    </div>
+    <p class="muted">Click an available seat to hold it.</p>
+
+    @for (section of sections(); track section.section) {
+      <div class="section">
+        <h3>Section {{ section.section }}</h3>
+        @for (row of section.rows; track row.row) {
+          <div class="row">
+            <span class="row-label">Row {{ row.row }}</span>
+            @for (seat of row.seats; track seat.id) {
+              <button
+                class="seat {{ seat.status.toLowerCase() }}"
+                [disabled]="seat.status !== 'Available' || holding()"
+                (click)="selectSeat(seat)"
+                [title]="'Section ' + seat.section + ' Row ' + seat.row + ' Seat ' + seat.number + ' — ' + seat.status">
+                {{ seat.number }}
+              </button>
+            }
+          </div>
+        }
+      </div>
+    }
+  }
+</section>
