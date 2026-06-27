@@ -1,0 +1,53 @@
+# Angular SPA (nginx). Served same-origin with the gateway via the Ingress, so API_BASE_URL
+# points at the Ingress host and the browser's /catalog, /booking, ... calls are routed to the
+# gateway by the Ingress (no CORS needed).
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+  namespace: event-ticketing
+  labels: { app: web, app.kubernetes.io/part-of: event-ticketing }
+spec:
+  selector: { app: web }
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: event-ticketing
+  labels: { app: web, app.kubernetes.io/part-of: event-ticketing }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: web }
+  template:
+    metadata:
+      labels: { app: web, app.kubernetes.io/part-of: event-ticketing }
+    spec:
+      containers:
+        - name: web
+          image: eventticketing/web:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+          env:
+            # Browser-visible base URL for API calls = the Ingress host (same origin as the SPA).
+            # For the port-forward access method instead, override this to http://localhost:8088.
+            - name: API_BASE_URL
+              value: "http://event-ticketing.localtest.me"
+          resources:
+            requests: { cpu: "25m", memory: "32Mi" }
+            limits: { cpu: "200m", memory: "128Mi" }
+          readinessProbe:
+            httpGet: { path: /, port: 80 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /, port: 80 }
+            initialDelaySeconds: 10
+            periodSeconds: 20

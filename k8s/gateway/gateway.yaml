@@ -1,0 +1,53 @@
+# YARP API gateway. Routes to the services by their in-cluster Service DNS names
+# (http://catalog-api:8080 etc., already baked into its appsettings).
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway
+  namespace: event-ticketing
+  labels: { app: gateway, app.kubernetes.io/part-of: event-ticketing }
+spec:
+  selector: { app: gateway }
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway
+  namespace: event-ticketing
+  labels: { app: gateway, app.kubernetes.io/part-of: event-ticketing }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: gateway }
+  template:
+    metadata:
+      labels: { app: gateway, app.kubernetes.io/part-of: event-ticketing }
+    spec:
+      containers:
+        - name: gateway
+          image: eventticketing/gateway:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef: { name: et-config }   # ASPNETCORE_ENVIRONMENT
+          env:
+            # SPA is served same-origin via Ingress, so CORS isn't exercised; set anyway for safety.
+            - name: Cors__AllowedOrigins__0
+              value: "http://event-ticketing.localtest.me"
+          resources:
+            requests: { cpu: "50m", memory: "64Mi" }
+            limits: { cpu: "300m", memory: "256Mi" }
+          readinessProbe:
+            httpGet: { path: /health, port: 8080 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /health, port: 8080 }
+            initialDelaySeconds: 15
+            periodSeconds: 20

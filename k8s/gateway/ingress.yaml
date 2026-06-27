@@ -1,0 +1,34 @@
+# An Ingress is an HTTP router at the edge of the cluster. It needs an Ingress CONTROLLER
+# (e.g. ingress-nginx) installed to actually serve traffic — see k8s/README.md.
+#
+# Single host, same origin:
+#   /catalog, /booking, /payment, /notification  -> gateway  (YARP then strips the prefix)
+#   everything else (/)                          -> web (the SPA)
+# No rewrite-target annotation: the full path is forwarded so YARP can strip the prefix itself.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: event-ticketing
+  namespace: event-ticketing
+  labels: { app.kubernetes.io/part-of: event-ticketing }
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: event-ticketing.localtest.me   # *.localtest.me resolves to 127.0.0.1 (no hosts-file edit)
+      http:
+        paths:
+          - path: /catalog
+            pathType: Prefix
+            backend: { service: { name: gateway, port: { number: 8080 } } }
+          - path: /booking
+            pathType: Prefix
+            backend: { service: { name: gateway, port: { number: 8080 } } }
+          - path: /payment
+            pathType: Prefix
+            backend: { service: { name: gateway, port: { number: 8080 } } }
+          - path: /notification
+            pathType: Prefix
+            backend: { service: { name: gateway, port: { number: 8080 } } }
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: web, port: { number: 80 } } }
