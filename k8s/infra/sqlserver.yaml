@@ -1,0 +1,82 @@
+# SQL Server as a StatefulSet: a StatefulSet gives the pod a stable name (sqlserver-0) and a
+# stable, dedicated PersistentVolume — the right pattern for stateful workloads like databases.
+# The headless Service (clusterIP: None) gives it a stable DNS name other pods use: "sqlserver".
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sqlserver
+  namespace: event-ticketing
+  labels: { app: sqlserver, app.kubernetes.io/part-of: event-ticketing }
+spec:
+  clusterIP: None          # headless: DNS "sqlserver" resolves straight to the pod
+  selector: { app: sqlserver }
+  ports:
+    - name: mssql
+      port: 1433
+      targetPort: 1433
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: sqlserver
+  namespace: event-ticketing
+  labels: { app: sqlserver, app.kubernetes.io/part-of: event-ticketing }
+spec:
+  serviceName: sqlserver
+  replicas: 1
+  selector:
+    matchLabels: { app: sqlserver }
+  template:
+    metadata:
+      labels: { app: sqlserver, app.kubernetes.io/part-of: event-ticketing }
+    spec:
+      securityContext:
+        fsGroup: 10001       # mssql runs as uid 10001; make the mounted volume writable by it
+      containers:
+        - name: sqlserver
+          image: mcr.microsoft.com/mssql/server:2022-latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 1433
+          env:
+            - name: ACCEPT_EULA
+              value: "Y"
+            - name: MSSQL_PID
+              value: "Developer"
+            - name: MSSQL_SA_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: et-secrets, key: MSSQL_SA_PASSWORD }
+            # Cap SQL's memory below the k8s limit so it isn't OOM-killed.
+            - name: MSSQL_MEMORY_LIMIT_MB
+              value: "2048"
+          resources:
+            requests: { cpu: "250m", memory: "1Gi" }
+            limits: { cpu: "1", memory: "3Gi" }
+          volumeMounts:
+            - name: mssql-data
+              mountPath: /var/opt/mssql
+          # Readiness gates traffic until SQL can answer a query; liveness restarts a hung server.
+          # SQL is slow to start, so both probes are forgiving.
+          readinessProbe:
+            exec:
+              command: ["/bin/sh", "-c", '/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$MSSQL_SA_PASSWORD" -C -Q "SELECT 1" -b']
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 20
+          livenessProbe:
+            exec:
+              command: ["/bin/sh", "-c", '/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$MSSQL_SA_PASSWORD" -C -Q "SELECT 1" -b']
+            initialDelaySeconds: 90
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 10
+  volumeClaimTemplates:
+    - metadata:
+        name: mssql-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 2Gi
