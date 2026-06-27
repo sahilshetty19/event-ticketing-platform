@@ -1,0 +1,59 @@
+# Booking service (uses SQL Server, Redis lock, and RabbitMQ).
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: booking-api
+  namespace: event-ticketing
+  labels: { app: booking-api, app.kubernetes.io/part-of: event-ticketing }
+spec:
+  selector: { app: booking-api }
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: booking-api
+  namespace: event-ticketing
+  labels: { app: booking-api, app.kubernetes.io/part-of: event-ticketing }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: booking-api }
+  template:
+    metadata:
+      labels: { app: booking-api, app.kubernetes.io/part-of: event-ticketing }
+    spec:
+      containers:
+        - name: booking-api
+          image: eventticketing/booking-api:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef: { name: et-config }
+          env:
+            - name: ConnectionStrings__BookingDb
+              valueFrom:
+                secretKeyRef: { name: et-secrets, key: ConnectionStrings__BookingDb }
+            - name: RabbitMq__Password
+              valueFrom:
+                secretKeyRef: { name: et-secrets, key: RabbitMq__Password }
+          resources:
+            requests: { cpu: "100m", memory: "128Mi" }
+            limits: { cpu: "500m", memory: "512Mi" }
+          startupProbe:
+            httpGet: { path: /health, port: 8080 }
+            periodSeconds: 10
+            failureThreshold: 30
+          readinessProbe:
+            httpGet: { path: /health, port: 8080 }
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet: { path: /health, port: 8080 }
+            periodSeconds: 20
+            failureThreshold: 3

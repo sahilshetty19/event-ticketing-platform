@@ -1,0 +1,59 @@
+# Notification service (uses SQL Server and RabbitMQ; consumes BookingConfirmed).
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-api
+  namespace: event-ticketing
+  labels: { app: notification-api, app.kubernetes.io/part-of: event-ticketing }
+spec:
+  selector: { app: notification-api }
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-api
+  namespace: event-ticketing
+  labels: { app: notification-api, app.kubernetes.io/part-of: event-ticketing }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: notification-api }
+  template:
+    metadata:
+      labels: { app: notification-api, app.kubernetes.io/part-of: event-ticketing }
+    spec:
+      containers:
+        - name: notification-api
+          image: eventticketing/notification-api:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef: { name: et-config }
+          env:
+            - name: ConnectionStrings__NotificationDb
+              valueFrom:
+                secretKeyRef: { name: et-secrets, key: ConnectionStrings__NotificationDb }
+            - name: RabbitMq__Password
+              valueFrom:
+                secretKeyRef: { name: et-secrets, key: RabbitMq__Password }
+          resources:
+            requests: { cpu: "100m", memory: "128Mi" }
+            limits: { cpu: "500m", memory: "512Mi" }
+          startupProbe:
+            httpGet: { path: /health, port: 8080 }
+            periodSeconds: 10
+            failureThreshold: 30
+          readinessProbe:
+            httpGet: { path: /health, port: 8080 }
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet: { path: /health, port: 8080 }
+            periodSeconds: 20
+            failureThreshold: 3

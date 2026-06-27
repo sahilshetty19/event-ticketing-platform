@@ -1,0 +1,59 @@
+# Catalog service. A Deployment runs and supervises the pod(s); the Service gives them a stable
+# in-cluster address (catalog-api:8080) and load-balances across replicas.
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: catalog-api
+  namespace: event-ticketing
+  labels: { app: catalog-api, app.kubernetes.io/part-of: event-ticketing }
+spec:
+  selector: { app: catalog-api }
+  ports:
+    - name: http
+      port: 8080          # gateway addresses this as http://catalog-api:8080
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: catalog-api
+  namespace: event-ticketing
+  labels: { app: catalog-api, app.kubernetes.io/part-of: event-ticketing }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: catalog-api }
+  template:
+    metadata:
+      labels: { app: catalog-api, app.kubernetes.io/part-of: event-ticketing }
+    spec:
+      containers:
+        - name: catalog-api
+          image: eventticketing/catalog-api:latest
+          imagePullPolicy: IfNotPresent   # use the image loaded into the cluster, don't pull from a registry
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef: { name: et-config }   # ASPNETCORE_ENVIRONMENT, Redis host, RabbitMQ host/user
+          env:
+            - name: ConnectionStrings__CatalogDb
+              valueFrom:
+                secretKeyRef: { name: et-secrets, key: ConnectionStrings__CatalogDb }
+          resources:
+            requests: { cpu: "100m", memory: "128Mi" }
+            limits: { cpu: "500m", memory: "512Mi" }
+          # startupProbe covers the slow first boot (the app runs EF migrations before Kestrel
+          # starts listening). Once it passes, readiness/liveness take over.
+          startupProbe:
+            httpGet: { path: /health, port: 8080 }
+            periodSeconds: 10
+            failureThreshold: 30      # up to ~5 min for DB + migrations
+          readinessProbe:
+            httpGet: { path: /health, port: 8080 }
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet: { path: /health, port: 8080 }
+            periodSeconds: 20
+            failureThreshold: 3
