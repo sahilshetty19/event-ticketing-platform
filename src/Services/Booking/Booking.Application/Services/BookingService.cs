@@ -80,9 +80,18 @@ public class BookingService : IBookingService
         return booking is null ? null : ToResponse(booking);
     }
 
+    public async Task MarkPaidAsync(Guid bookingId, CancellationToken ct = default)
+    {
+        var booking = await _repository.GetByIdAsync(bookingId, ct);
+        if (booking is null || booking.IsPaid) return; // idempotent: unknown or already paid
+
+        booking.MarkPaid(DateTime.UtcNow);
+        await _repository.SaveChangesAsync(ct);
+    }
+
     private static string SeatLockKey(Guid eventId, Guid seatId) => $"seat-lock:{eventId}:{seatId}";
 
     private static BookingResponse ToResponse(SeatBooking b) => new(
         b.Id, b.EventId, b.SeatId, b.CustomerId, b.Amount,
-        b.Status.ToString(), b.HeldAtUtc, b.ExpiresAtUtc, b.ConfirmedAtUtc);
+        b.Status.ToString(), b.HeldAtUtc, b.ExpiresAtUtc, b.ConfirmedAtUtc, b.PaidAtUtc);
 }

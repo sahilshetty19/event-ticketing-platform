@@ -70,4 +70,39 @@ public class SeatBookingTests
         Assert.True(booking.IsExpired(DateTime.UtcNow));
         Assert.False(booking.IsExpired(heldAt.AddMinutes(5)));
     }
+
+    [Fact]
+    public void MarkPaid_SetsPaidAt_WhenConfirmed()
+    {
+        var now = DateTime.UtcNow;
+        var booking = SeatBooking.Hold(EventId, SeatId, CustomerId, 50m, TimeSpan.FromMinutes(10), now);
+        booking.Confirm(now);
+
+        booking.MarkPaid(now.AddMinutes(1));
+
+        Assert.True(booking.IsPaid);
+        Assert.NotNull(booking.PaidAtUtc);
+    }
+
+    [Fact]
+    public void MarkPaid_IsIdempotent()
+    {
+        var now = DateTime.UtcNow;
+        var booking = SeatBooking.Hold(EventId, SeatId, CustomerId, 50m, TimeSpan.FromMinutes(10), now);
+        booking.Confirm(now);
+        booking.MarkPaid(now.AddMinutes(1));
+        var firstPaidAt = booking.PaidAtUtc;
+
+        booking.MarkPaid(now.AddMinutes(5)); // second call is a no-op
+
+        Assert.Equal(firstPaidAt, booking.PaidAtUtc);
+    }
+
+    [Fact]
+    public void MarkPaid_Throws_WhenNotConfirmed()
+    {
+        var booking = SeatBooking.Hold(EventId, SeatId, CustomerId, 50m, TimeSpan.FromMinutes(10), DateTime.UtcNow);
+
+        Assert.Throws<InvalidBookingStateException>(() => booking.MarkPaid(DateTime.UtcNow));
+    }
 }

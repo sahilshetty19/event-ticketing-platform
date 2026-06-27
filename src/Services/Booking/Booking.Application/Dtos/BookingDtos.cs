@@ -11,7 +11,8 @@ public record BookingResponse(
     string Status,
     DateTime HeldAtUtc,
     DateTime ExpiresAtUtc,
-    DateTime? ConfirmedAtUtc);
+    DateTime? ConfirmedAtUtc,
+    DateTime? PaidAtUtc);
 
 public enum HoldOutcome
 {

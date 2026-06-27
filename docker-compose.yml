@@ -75,6 +75,8 @@ services:
         condition: service_healthy
       booking-api:
         condition: service_healthy
+      payment-api:
+        condition: service_healthy
       notification-api:
         condition: service_healthy
     environment:
@@ -141,6 +143,34 @@ services:
       RabbitMq__Password: ${RABBITMQ_PASSWORD}
     ports:
       - "${BOOKING_HTTP_PORT:-5002}:8080"
+    networks:
+      - eventnet
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  payment-api:
+    build:
+      context: .
+      dockerfile: src/Services/Payment/Payment.API/Dockerfile
+    image: eventticketing/payment-api
+    container_name: et-payment-api
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      ConnectionStrings__PaymentDb: "Server=sqlserver,1433;Database=PaymentDb;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True"
+      RabbitMq__Host: rabbitmq
+      RabbitMq__Username: ${RABBITMQ_USER:-eventuser}
+      RabbitMq__Password: ${RABBITMQ_PASSWORD}
+    ports:
+      - "${PAYMENT_HTTP_PORT:-5004}:8080"
     networks:
       - eventnet
     healthcheck:

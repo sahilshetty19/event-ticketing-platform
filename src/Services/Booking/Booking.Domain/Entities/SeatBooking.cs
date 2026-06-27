@@ -17,6 +17,9 @@ public class SeatBooking
     public DateTime HeldAtUtc { get; private set; }
     public DateTime ExpiresAtUtc { get; private set; }
     public DateTime? ConfirmedAtUtc { get; private set; }
+    public DateTime? PaidAtUtc { get; private set; }
+
+    public bool IsPaid => PaidAtUtc is not null;
 
     // Required by EF Core.
     private SeatBooking() { }
@@ -65,5 +68,17 @@ public class SeatBooking
         if (Status == BookingStatus.Confirmed)
             throw new InvalidBookingStateException("A confirmed booking cannot be cancelled.");
         Status = BookingStatus.Cancelled;
+    }
+
+    /// <summary>
+    /// Records that payment succeeded for this booking. Idempotent: a redelivered PaymentSucceeded
+    /// event is a no-op. Only a confirmed booking can be marked paid.
+    /// </summary>
+    public void MarkPaid(DateTime nowUtc)
+    {
+        if (IsPaid) return;
+        if (Status != BookingStatus.Confirmed)
+            throw new InvalidBookingStateException($"Cannot mark a booking in state '{Status}' as paid.");
+        PaidAtUtc = nowUtc;
     }
 }

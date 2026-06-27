@@ -36,8 +36,8 @@ public static class DependencyInjection
             services.AddSingleton<IDistributedLock, InMemoryDistributedLock>();
         }
 
-        // Messaging: Booking only publishes integration events (no consumers).
-        services.AddEventBus(config);
+        // Messaging: Booking publishes BookingConfirmed and consumes PaymentSucceeded.
+        services.AddEventBus(config, x => x.AddConsumer<PaymentSucceededConsumer>());
         services.AddScoped<IEventBus, MassTransitEventBus>();
 
         return services;
