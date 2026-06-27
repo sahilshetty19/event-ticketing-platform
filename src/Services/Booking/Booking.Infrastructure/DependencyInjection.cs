@@ -37,7 +37,7 @@ public static class DependencyInjection
         }
 
         // Messaging: Booking publishes BookingConfirmed and consumes PaymentSucceeded.
-        services.AddEventBus(config, x => x.AddConsumer<PaymentSucceededConsumer>());
+        services.AddEventBus(config, "booking", x => x.AddConsumer<PaymentSucceededConsumer>());
         services.AddScoped<IEventBus, MassTransitEventBus>();
 
         return services;

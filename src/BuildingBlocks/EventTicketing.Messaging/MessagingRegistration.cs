@@ -15,11 +15,15 @@ public static class MessagingRegistration
     public static IServiceCollection AddEventBus(
         this IServiceCollection services,
         IConfiguration config,
+        string endpointPrefix,
         Action<IBusRegistrationConfigurator>? configureConsumers = null)
     {
         services.AddMassTransit(x =>
         {
-            x.SetKebabCaseEndpointNameFormatter();
+            // Prefix receive-endpoint (queue) names with the service name. Without this, two
+            // services that both have e.g. a "BookingConfirmedConsumer" would bind the SAME queue
+            // and become competing consumers — turning pub/sub into a shared work queue.
+            x.SetEndpointNameFormatter(new KebabCaseEndpointNameFormatter(endpointPrefix, includeNamespace: false));
             configureConsumers?.Invoke(x);
 
             var host = config["RabbitMq:Host"];

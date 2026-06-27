@@ -23,7 +23,7 @@ public static class DependencyInjection
         services.AddScoped<INotificationSender, LoggingNotificationSender>();
 
         // Messaging: register the consumer with MassTransit so it binds to a RabbitMQ queue.
-        services.AddEventBus(config, x => x.AddConsumer<BookingConfirmedConsumer>());
+        services.AddEventBus(config, "notification", x => x.AddConsumer<BookingConfirmedConsumer>());
 
         return services;
     }

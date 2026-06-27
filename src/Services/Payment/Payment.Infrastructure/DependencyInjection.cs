@@ -22,7 +22,7 @@ public static class DependencyInjection
         services.AddScoped<IEventBus, MassTransitEventBus>();
 
         // Messaging: Payment both consumes BookingConfirmed and publishes PaymentSucceeded.
-        services.AddEventBus(config, x => x.AddConsumer<BookingConfirmedConsumer>());
+        services.AddEventBus(config, "payment", x => x.AddConsumer<BookingConfirmedConsumer>());
 
         return services;
     }
