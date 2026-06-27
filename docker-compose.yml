@@ -81,7 +81,9 @@ services:
     networks:
       - eventnet
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost/ >/dev/null 2>&1 || exit 1"]
+      # Use 127.0.0.1 (not localhost) so busybox wget doesn't try IPv6 ::1, which nginx
+      # isn't listening on; and separate flags for busybox compatibility.
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/ || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 5
