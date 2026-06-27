@@ -43,9 +43,15 @@ export class BookingStatusComponent implements OnInit, OnDestroy {
   private tick(): void {
     const b = this.booking();
     if (b?.status === 'Held') {
-      const ms = new Date(b.expiresAtUtc).getTime() - Date.now();
+      const ms = this.asUtc(b.expiresAtUtc).getTime() - Date.now();
       this.secondsLeft.set(Math.max(0, Math.floor(ms / 1000)));
     }
+  }
+
+  // Server timestamps are UTC (fields are named *Utc). If the string lacks a timezone
+  // designator, treat it as UTC so the browser doesn't misread it as local time.
+  private asUtc(value: string): Date {
+    return /[zZ]|[+-]\d{2}:\d{2}$/.test(value) ? new Date(value) : new Date(value + 'Z');
   }
 
   confirm(): void {
