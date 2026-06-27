@@ -14,17 +14,30 @@ builder.Services.AddInfrastructure(builder.Configuration);
 
 var app = builder.Build();
 
-// Migrate + seed on startup. Migrations run automatically when the container boots so a
-// fresh database is schema-ready without a separate pipeline step.
+// Migrate + seed on startup, retrying so the app waits for the database to accept connections
+// instead of crashing if it starts before SQL Server is ready.
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<CatalogDbContext>();
-    // Relational providers (SQL Server) run migrations; the in-memory provider used by
-    // integration tests has no migration support, so just ensure the schema exists.
-    if (db.Database.IsRelational())
-        await db.Database.MigrateAsync();
-    else
-        await db.Database.EnsureCreatedAsync();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    for (var attempt = 1; ; attempt++)
+    {
+        try
+        {
+            // Relational providers (SQL Server) run migrations; the in-memory provider used by
+            // integration tests has no migration support, so just ensure the schema exists.
+            if (db.Database.IsRelational())
+                await db.Database.MigrateAsync();
+            else
+                await db.Database.EnsureCreatedAsync();
+            break;
+        }
+        catch (Exception ex) when (attempt < 12)
+        {
+            logger.LogWarning(ex, "Database not ready (attempt {Attempt}/12); retrying in 5s...", attempt);
+            await Task.Delay(TimeSpan.FromSeconds(5));
+        }
+    }
     await CatalogDbSeeder.SeedAsync(db);
 }
 

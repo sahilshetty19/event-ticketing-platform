@@ -14,14 +14,28 @@ builder.Services.AddInfrastructure(builder.Configuration);
 
 var app = builder.Build();
 
-// Apply migrations on startup so a fresh container is schema-ready.
+// Apply migrations on startup, retrying so the app waits for the database to accept
+// connections instead of crashing if it starts before SQL Server is ready.
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<PaymentDbContext>();
-    if (db.Database.IsRelational())
-        await db.Database.MigrateAsync();
-    else
-        await db.Database.EnsureCreatedAsync();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    for (var attempt = 1; ; attempt++)
+    {
+        try
+        {
+            if (db.Database.IsRelational())
+                await db.Database.MigrateAsync();
+            else
+                await db.Database.EnsureCreatedAsync();
+            break;
+        }
+        catch (Exception ex) when (attempt < 12)
+        {
+            logger.LogWarning(ex, "Database not ready (attempt {Attempt}/12); retrying in 5s...", attempt);
+            await Task.Delay(TimeSpan.FromSeconds(5));
+        }
+    }
 }
 
 if (app.Environment.IsDevelopment())
