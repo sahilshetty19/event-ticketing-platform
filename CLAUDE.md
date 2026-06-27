@@ -4,78 +4,72 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-Event-ticketing backend built as .NET 9 microservices. Only the **Catalog** service exists so far
-(read-only browsing of events, venues, and seats). The code carries "Day N" comments — it is being
-built incrementally as a learning/tutorial project, so expect features to be partially scaffolded.
+Cloud-native event-ticketing backend: **four .NET 9 microservices** (Catalog, Booking, Payment,
+Notification) behind a **YARP API gateway**, using SQL Server (database-per-service), Redis,
+and RabbitMQ (MassTransit). Backend only. See [README.md](README.md) for the full architecture,
+endpoint list, and design-decision writeup.
 
 ## Commands
 
 Run from the repository root.
 
 ```bash
-# Build everything
+# Build / test the whole solution
 dotnet build EventTicketing.sln
+dotnet test EventTicketing.sln                 # 34 tests; no external infra needed
 
-# Run the Catalog API (http://localhost:5264, https://localhost:7244; Swagger UI at /swagger in Development)
-dotnet run --project src/Services/Catalog/Catalog.API
+# Single test project / single test
+dotnet test tests/Booking.IntegrationTests/Booking.IntegrationTests.csproj
+dotnet test tests/Booking.UnitTests/Booking.UnitTests.csproj --filter "FullyQualifiedName~Confirm"
 
-# EF Core migrations (Infrastructure holds the DbContext; API is the startup project)
+# Run the entire system (gateway + 4 services + SQL Server + Redis + RabbitMQ)
+cp .env.example .env        # first time only (.env is gitignored)
+docker compose up --build
+
+# EF Core migration for a service (Infrastructure holds the DbContext; API is startup)
 dotnet ef migrations add <Name> \
-  --project src/Services/Catalog/Catalog.Infrastructure \
-  --startup-project src/Services/Catalog/Catalog.API
+  --project src/Services/<Service>/<Service>.Infrastructure \
+  --startup-project src/Services/<Service>/<Service>.API \
+  --output-dir Persistence/Migrations
 ```
 
-There is **no test project yet**. `Program.cs` already exposes `public partial class Program {}` for
-future `WebApplicationFactory`-based integration tests.
+The EF CLI tools must be v9+ (`dotnet tool update --global dotnet-ef --version 9.*`).
 
-## Known broken state (fix before anything else)
+## Architecture & conventions
 
-- The solution **does not compile**. `Catalog.Infrastructure` uses EF Core (`DbContext`,
-  `UseSqlServer`, `IEntityTypeConfiguration`) but its `.csproj` is missing the package references.
-  Add `Microsoft.EntityFrameworkCore.SqlServer` and `Microsoft.EntityFrameworkCore.Design` to
-  [Catalog.Infrastructure.csproj](src/Services/Catalog/Catalog.Infrastructure/Catalog.Infrastructure.csproj).
-- **No migrations exist**, yet [Program.cs](src/Services/Catalog/Catalog.API/Program.cs) calls
-  `db.Database.MigrateAsync()` on startup. Create an initial migration (command above) or the app
-  will fail to start once it compiles.
+Each `src/Services/<Service>` has four projects with a strict one-way dependency flow
+(`API → Infrastructure → Application → Domain`); Domain has no dependencies. Shared code is under
+`src/BuildingBlocks` (`EventTicketing.Contracts` = integration-event records;
+`EventTicketing.Messaging` = shared MassTransit/RabbitMQ setup). The gateway is
+`src/ApiGateway/ApiGateway`.
 
-## Runtime prerequisites
+- **Per-layer DI:** every layer exposes a `DependencyInjection` static class with an `Add<Layer>(...)`
+  extension; `Program.cs` composes `AddApplication()` + `AddInfrastructure(config)`.
+- **Ports & adapters:** cross-cutting concerns are interfaces in Application with implementations in
+  Infrastructure — `ICacheService` (Catalog), `IDistributedLock` + `IEventBus` (Booking),
+  `IEventBus` (Payment). Each has an in-memory/test-friendly fallback selected when Redis/RabbitMQ
+  are not configured, which is what lets tests run with no external infrastructure.
+- **Messaging:** publish/consume `BookingConfirmed` and `PaymentSucceeded` via MassTransit. Consumers
+  must be **idempotent** (at-least-once delivery); retries then dead-letter to `*_error` queues.
+- **Persistence:** EF Core, enums stored as strings (`HasConversion<string>()`), migrations run on
+  startup (relational only; tests use the in-memory provider). Each service has a design-time
+  `DbContextFactory` so `dotnet ef` needs no live DB or secret.
+- **Async + `CancellationToken`** on every service/repository method.
+- **No hardcoded secrets:** connection strings / broker creds come from env vars (`.env`, gitignored;
+  `.env.example` is committed).
+- **Central Package Management:** package versions live in `Directory.Packages.props`; csproj
+  `PackageReference`s are versionless. Common TFM/Nullable settings are in `Directory.Build.props`.
+  Framework-tied packages (EF Core, AspNetCore.Mvc.Testing) are pinned to 9.0.x for the net9.0 target.
 
-- A SQL Server instance reachable at `localhost:1433` (sa / `Your_password123`), per the `CatalogDb`
-  connection string in [appsettings.json](src/Services/Catalog/Catalog.API/appsettings.json).
-  Typically run via Docker (`mcr.microsoft.com/mssql/server`).
-- On startup the API auto-runs migrations **and** seeds demo data
-  ([CatalogDbSeeder](src/Services/Catalog/Catalog.Infrastructure/Persistence/CatalogDbSeeder.cs),
-  idempotent — it no-ops if any venue exists).
+### Adding a new microservice
+Mirror the four-project layout under `src/Services/<Name>`, register each project in
+`EventTicketing.sln`, add a Dockerfile (build context = repo root so the central props files
+resolve), and add the service + healthcheck to `docker-compose.yml`.
 
-## Architecture
+## Tests
 
-Clean Architecture / DDD layering. Each `src/Services/<Service>` folder contains four projects with a
-strict one-way dependency flow:
-
-```
-Catalog.API  →  Catalog.Infrastructure  →  Catalog.Application  →  Catalog.Domain
-(controllers,    (EF Core, DbContext,       (DTOs, service +       (entities only,
- Program.cs,      repositories, seeder,       repository            no dependencies)
- Swagger)         DI registration)            interfaces, services)
-```
-
-- **Domain** — POCO entities only: `Event`, `Venue`, `Seat` (+ `SeatStatus` enum). No framework refs.
-- **Application** — `record` DTOs ([CatalogDtos.cs](src/Services/Catalog/Catalog.Application/Dtos/CatalogDtos.cs)),
-  abstractions (`IEventService`, `IEventRepository`), and `EventService` which maps entities → DTOs.
-  Repository interfaces live here; implementations live in Infrastructure (dependency inversion).
-- **Infrastructure** — `CatalogDbContext`, entity configs applied via
-  `ApplyConfigurationsFromAssembly`, `EventRepository` (all queries `AsNoTracking` — this is a
-  read-only catalog), and the seeder.
-- **API** — thin controllers delegating to `IEventService`; endpoints under `api/events`.
-
-### Conventions to follow when extending
-
-- **DI per layer**: every layer exposes a static `DependencyInjection` class with an
-  `Add<Layer>(...)` extension; `Program.cs` composes them (`AddApplication()`,
-  `AddInfrastructure(config)`). Register new services there, not inline.
-- **Async + `CancellationToken`**: every service/repository method takes and forwards a `ct`.
-- **Entity configuration**: add a new `IEntityTypeConfiguration<T>` class in
-  `Infrastructure/Persistence/Configurations` — it is picked up automatically by the assembly scan.
-  Enums are persisted as strings (see `Seat.Status` → `HasConversion<string>()`).
-- **Adding a new microservice**: mirror the Catalog four-project layout under `src/Services/<Name>`
-  and register each project in `EventTicketing.sln` (solution folders nest under `src` → `Services`).
+`tests/*` — xUnit + Moq unit tests per service, plus `WebApplicationFactory` integration tests
+(Catalog read endpoints; Booking hold→confirm→event-published using the MassTransit in-memory test
+harness). xUnit needs an explicit `using Xunit;` (no global usings). The integration factories swap
+SQL Server → EF in-memory and RabbitMQ → MassTransit test harness by removing the real registrations
+in `ConfigureTestServices`.
