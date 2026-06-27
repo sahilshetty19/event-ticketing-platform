@@ -157,6 +157,10 @@ docker compose up --build
 
 Then open the UI at **http://localhost:4200**.
 
+> **Run on Kubernetes instead?** The same images also deploy to a local Kubernetes cluster
+> (Docker Desktop / kind) — see [k8s/README.md](k8s/README.md). Compose and Kubernetes are both
+> supported and the compose path is unchanged.
+
 Each service migrates its database on startup, so the system is ready once the containers report
 healthy. Compose orchestrates start-up order with healthchecks (`depends_on: condition:
 service_healthy`).
